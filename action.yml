@@ -1,0 +1,151 @@
+name: Setup main-kts
+description: Install Java and Kotlin with dependency and compiled-script caches for main-kts scripts
+author: Heapy
+branding:
+  icon: terminal
+  color: purple
+inputs:
+  kotlin-version:
+    description: Exact Kotlin compiler release
+    default: '2.4.20'
+  kotlin-sha256:
+    description: Optional pinned compiler archive SHA-256; otherwise fetch the official release checksum
+  java-version:
+    description: Java version passed to actions/setup-java
+    default: '25'
+  distribution:
+    description: JDK distribution passed to actions/setup-java
+    default: temurin
+  setup-java:
+    description: Install Java; false requires an existing JAVA_HOME
+    default: 'true'
+  toolchain-java-home:
+    description: Also export KOTLIN_CLI_JAVA_HOME so Kotlin Toolchain uses this Java for its own CLI
+    default: 'false'
+  cache:
+    description: Enable cross-job compiler, Maven dependency and compiled-script caching
+    default: 'true'
+  cache-dependencies:
+    description: Cache ~/.m2/repository
+    default: 'true'
+  cache-compiled-scripts:
+    description: Cache compiled scripts on exact key matches
+    default: 'true'
+  cache-dependency-path:
+    description: Newline-separated hashFiles patterns; include scripts, imports and local compiler plugins
+    default: '**/*.main.kts'
+  cache-compiler-options:
+    description: Compiler flags/classpath identity for cache invalidation only; not passed to the runner
+  cache-key-suffix:
+    description: Extra cache namespace for manual invalidation
+  cache-read-only:
+    description: true, false, or auto (save only on push, workflow_dispatch and schedule)
+    default: auto
+outputs:
+  kotlin-version:
+    description: Installed Kotlin version
+    value: ${{ steps.prepare.outputs.kotlin-version }}
+  kotlin-home:
+    description: Kotlin compiler installation directory
+    value: ${{ steps.install.outputs.kotlin-home }}
+  java-home:
+    description: Selected JAVA_HOME
+    value: ${{ steps.install.outputs.java-home }}
+  compiled-cache-path:
+    description: Compiled-script cache directory
+    value: ${{ steps.install.outputs.compiled-cache-path }}
+  compiler-cache-hit:
+    description: Whether the compiler archive cache matched exactly
+    value: ${{ steps.compiler.outputs.cache-hit || steps.compiler-read.outputs.cache-hit }}
+  dependencies-cache-hit:
+    description: Whether the Maven dependency cache matched exactly
+    value: ${{ steps.dependencies.outputs.cache-hit || steps.dependencies-read.outputs.cache-hit }}
+  compiled-cache-hit:
+    description: Whether the compiled-script cache matched exactly
+    value: ${{ steps.compiled.outputs.cache-hit || steps.compiled-read.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - name: Validate Java setup option
+      shell: bash
+      env:
+        SETUP_JAVA: ${{ inputs.setup-java }}
+      run: |
+        case "$SETUP_JAVA" in
+          true|false) ;;
+          *) echo 'setup-java must be true or false' >&2; exit 1 ;;
+        esac
+    - name: Set up Java
+      if: inputs.setup-java == 'true'
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: ${{ inputs.distribution }}
+        overwrite-settings: 'false'
+    - name: Prepare Kotlin and cache identity
+      id: prepare
+      shell: bash
+      env:
+        ACTION_DIRECTORY: ${{ github.action_path }}
+        INPUT_KOTLIN_VERSION: ${{ inputs.kotlin-version }}
+        INPUT_KOTLIN_SHA256: ${{ inputs.kotlin-sha256 }}
+        INPUT_CACHE: ${{ inputs.cache }}
+        INPUT_CACHE_DEPENDENCIES: ${{ inputs.cache-dependencies }}
+        INPUT_CACHE_COMPILED_SCRIPTS: ${{ inputs.cache-compiled-scripts }}
+        INPUT_CACHE_READ_ONLY: ${{ inputs.cache-read-only }}
+        INPUT_CACHE_KEY_SUFFIX: ${{ inputs.cache-key-suffix }}
+        INPUT_CACHE_COMPILER_OPTIONS: ${{ inputs.cache-compiler-options }}
+        INPUT_TOOLCHAIN_JAVA_HOME: ${{ inputs.toolchain-java-home }}
+        INPUT_SCRIPTS_HASH: ${{ hashFiles(inputs.cache-dependency-path) }}
+      run: node "$ACTION_DIRECTORY/scripts/setup.mjs" prepare
+    - name: Cache Kotlin compiler archive
+      id: compiler
+      if: steps.prepare.outputs.cache-enabled == 'true' && steps.prepare.outputs.cache-read-only == 'false'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.prepare.outputs.compiler-path }}
+        key: ${{ steps.prepare.outputs.compiler-key }}
+    - name: Restore Kotlin compiler archive
+      id: compiler-read
+      if: steps.prepare.outputs.cache-enabled == 'true' && steps.prepare.outputs.cache-read-only == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.prepare.outputs.compiler-path }}
+        key: ${{ steps.prepare.outputs.compiler-key }}
+    - name: Cache Maven dependencies
+      id: dependencies
+      if: steps.prepare.outputs.dependencies-enabled == 'true' && steps.prepare.outputs.cache-read-only == 'false'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.prepare.outputs.dependencies-path }}
+        key: ${{ steps.prepare.outputs.dependencies-key }}
+        restore-keys: ${{ steps.prepare.outputs.dependencies-prefix }}
+    - name: Restore Maven dependencies
+      id: dependencies-read
+      if: steps.prepare.outputs.dependencies-enabled == 'true' && steps.prepare.outputs.cache-read-only == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.prepare.outputs.dependencies-path }}
+        key: ${{ steps.prepare.outputs.dependencies-key }}
+        restore-keys: ${{ steps.prepare.outputs.dependencies-prefix }}
+    - name: Cache compiled scripts
+      id: compiled
+      if: steps.prepare.outputs.compiled-enabled == 'true' && steps.prepare.outputs.cache-read-only == 'false'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.prepare.outputs.compiled-path }}
+        key: ${{ steps.prepare.outputs.compiled-key }}
+    - name: Restore compiled scripts
+      id: compiled-read
+      if: steps.prepare.outputs.compiled-enabled == 'true' && steps.prepare.outputs.cache-read-only == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.prepare.outputs.compiled-path }}
+        key: ${{ steps.prepare.outputs.compiled-key }}
+    - name: Install and verify Kotlin
+      id: install
+      shell: bash
+      env:
+        ACTION_DIRECTORY: ${{ github.action_path }}
+        SETUP_MAIN_KTS_CONFIG: ${{ steps.prepare.outputs.config }}
+      run: node "$ACTION_DIRECTORY/scripts/setup.mjs" install

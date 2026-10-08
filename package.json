@@ -1,0 +1,14 @@
+{
+  "name": "setup-main-kts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Set up Kotlin main-kts scripts with Java and persistent caches",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check scripts/setup.mjs && node --check test/integration.mjs && node --check test/smoke.mjs",
+    "integration": "node test/integration.mjs"
+  }
+}
