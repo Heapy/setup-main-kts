@@ -1,6 +1,6 @@
 {
   "name": "setup-main-kts",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Set up Kotlin main-kts scripts with Java and persistent caches",

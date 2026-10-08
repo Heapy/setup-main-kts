@@ -7,7 +7,7 @@ Linux, macOS and Windows runners.
 ## Usage
 
 Check out your repository before setup so the action can hash your scripts.
-After publishing this action as `Heapy/setup-main-kts@v1`:
+Use `Heapy/setup-main-kts@v1`:
 
 ```yaml
 steps:
