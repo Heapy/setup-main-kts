@@ -1,4 +1,4 @@
-# Setup main-kts
+# Setup Kotlin Scripting
 
 Set up Java and Kotlin for `.main.kts` scripts, with separate caches for the Kotlin
 compiler archive, Maven dependencies and compiled scripts. Works on GitHub-hosted

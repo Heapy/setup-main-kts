@@ -1,4 +1,4 @@
-name: Setup main-kts
+name: Setup Kotlin Scripting
 description: Install Java and Kotlin with dependency and compiled-script caches for main-kts scripts
 author: Heapy
 branding:
